@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食数伝達システム</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Bebas+Neue&display=swap');
+  :root{--bg:#f7f5f2;--ink:#111;--accent:#c0392b;--muted:#888;--border:#e0dbd4;--card:#fff;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);min-height:100vh;}
+  .tabs{display:flex;background:#111;}
+  .tab{padding:15px 32px;cursor:pointer;font-size:14px;font-weight:700;color:#666;border-bottom:3px solid transparent;transition:all .2s;}
+  .tab.active{color:#fff;border-bottom-color:var(--accent);}
+  .tab:hover{color:#fff;}
+  .page{display:none;}
+  .page.active{display:block;}
+
+  /* INPUT */
+  #inputPage{padding:32px;max-width:960px;margin:0 auto;}
+  .page-title{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:2px;margin-bottom:6px;}
+  .page-date{font-size:20px;font-weight:900;color:var(--ink);margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+  .companies-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px;}
+  .company-input-card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .cin-name{font-size:13px;font-weight:900;color:var(--muted);letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .cin-name input[type="text"]{flex:1;border:none;border-bottom:1.5px solid var(--border);background:transparent;font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:900;color:var(--ink);padding:2px 4px;outline:none;}
+  .cin-name input[type="text"]:focus{border-bottom-color:var(--accent);}
+  .cin-count{display:flex;align-items:center;gap:10px;}
+  .cin-count input[type="number"]{flex:1;border:1.5px solid var(--border);border-radius:8px;background:#fafafa;font-family:'Bebas Neue',sans-serif;font-size:44px;color:var(--ink);padding:6px 12px;outline:none;transition:border-color .2s;letter-spacing:2px;min-width:0;}
+  .cin-count input[type="number"]:focus{border-color:var(--accent);}
+  .cin-unit{font-size:14px;color:var(--muted);font-weight:700;}
+  .bottom-bar{display:flex;align-items:center;gap:16px;}
+  .btn-send{flex:1;background:var(--accent);color:#fff;border:none;border-radius:10px;font-family:'Noto Sans JP',sans-serif;font-size:16px;font-weight:900;padding:16px;cursor:pointer;letter-spacing:1px;transition:background .2s,transform .1s;}
+  .btn-send:hover{background:#a93226;}
+  .btn-send:active{transform:scale(.98);}
+  .btn-send:disabled{background:#ccc;cursor:not-allowed;}
+  .status-msg{font-size:13px;font-weight:700;color:#27ae60;white-space:nowrap;}
+  .status-msg.err{color:var(--accent);}
+
+  /* DISPLAY */
+  #displayPage{background:#0d0d0d;min-height:calc(100vh - 48px);display:none;flex-direction:column;}
+  #displayPage.active{display:flex;}
+  .disp-header{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid #222;}
+  .disp-header-title{font-family:'Bebas Neue',sans-serif;font-size:22px;color:#fff;letter-spacing:4px;}
+  .disp-header-right{display:flex;align-items:center;gap:12px;}
+  .disp-header-date{font-size:14px;color:#555;font-weight:700;letter-spacing:1px;}
+  .dot{display:inline-block;width:8px;height:8px;background:#27ae60;border-radius:50%;animation:blink 2s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  .disp-body{flex:1;padding:24px 28px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px;align-content:start;}
+  .disp-card{background:#161616;border:1.5px solid #222;border-radius:16px;padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .disp-card-name{font-size:12px;font-weight:700;color:#555;letter-spacing:1px;text-align:center;}
+  .disp-card-num{font-family:'Bebas Neue',sans-serif;font-size:88px;line-height:1;color:#fff;letter-spacing:3px;}
+  .disp-card-num.empty{color:#2a2a2a;font-size:60px;}
+  .disp-card-unit{font-size:13px;color:#444;font-weight:700;}
+  .disp-total{background:#1a1a1a;border-top:2px solid #222;padding:20px 32px;display:flex;justify-content:center;align-items:baseline;gap:12px;}
+  .disp-total-label{font-size:16px;font-weight:700;color:#555;letter-spacing:3px;}
+  .disp-total-num{font-family:'Bebas Neue',sans-serif;font-size:72px;color:var(--accent);letter-spacing:4px;}
+  .disp-total-unit{font-size:18px;color:#555;font-weight:700;}
+  .disp-updated{font-size:12px;color:#333;text-align:center;padding:8px;letter-spacing:1px;}
+  .loading{color:#444;text-align:center;padding:60px;font-size:16px;font-weight:700;letter-spacing:2px;}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('inputPage','t1')" id="t1">📋 事務所（入力）</div>
+  <div class="tab" onclick="showTab('displayPage','t2')" id="t2">🍳 調理場（表示）</div>
+</div>
+
+<div class="page active" id="inputPage">
+  <div class="page-title">食数入力</div>
+  <div class="page-date" id="inputDate"></div>
+  <div class="companies-grid" id="companiesGrid"></div>
+  <div class="bottom-bar">
+    <button class="btn-send" id="sendBtn" onclick="sendData()">📤 調理場に送信する</button>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+</div>
+
+<div class="page" id="displayPage">
+  <div class="disp-header">
+    <div class="disp-header-title">本日の食数</div>
+    <div class="disp-header-right">
+      <div class="disp-header-date" id="dispDate"></div>
+      <span class="dot"></span>
+    </div>
+  </div>
+  <div class="disp-body" id="dispBody"><div class="loading">読み込み中...</div></div>
+  <div class="disp-total">
+    <div class="disp-total-label">合　計</div>
+    <div class="disp-total-num" id="dispTotal">—</div>
+    <div class="disp-total-unit">食</div>
+  </div>
+  <div class="disp-updated" id="dispUpdated"></div>
+</div>
+
+<script>
+// ── 設定 ──────────────────────────────────────────────
+const STORAGE_KEY = 'shokusu_shared_2024';  // 共有キー（全端末共通）
+const DEFAULT_NAMES = ['A企業','B企業','C企業','D企業','E企業','F企業','G企業','H企業','I企業','J企業'];
+const NAME_KEY = 'shokusu_names_local';
+// ─────────────────────────────────────────────────────
+
+function getDateStr(){
+  const d=new Date();
+  const days=['日','月','火','水','木','金','土'];
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
+}
+document.getElementById('inputDate').textContent = getDateStr();
+
+function loadNames(){
+  try{ return JSON.parse(localStorage.getItem(NAME_KEY)) || [...DEFAULT_NAMES]; }
+  catch(e){ return [...DEFAULT_NAMES]; }
+}
+function saveNames(names){ localStorage.setItem(NAME_KEY, JSON.stringify(names)); }
+
+// ── Anthropic Storage API ─────────────────────────────
+async function storageGet(key){
+  try{
+    const r = await window.storage.get(key, true);
+    return r ? JSON.parse(r.value) : null;
+  }catch(e){ return null; }
+}
+async function storageSet(key, val){
+  try{
+    await window.storage.set(key, JSON.stringify(val), true);
+    return true;
+  }catch(e){ return false; }
+}
+
+// ── Build Input Grid ──────────────────────────────────
+function buildGrid(savedCounts){
+  const names = loadNames();
+  const grid = document.getElementById('companiesGrid');
+  grid.innerHTML = '';
+  names.forEach((name, i) => {
+    const card = document.createElement('div');
+    card.className = 'company-input-card';
+    card.innerHTML = `
+      <div class="cin-name">
+        <input type="text" value="${name}" placeholder="会社名" data-idx="${i}" onchange="updateName(this)">
+      </div>
+      <div class="cin-count">
+        <input type="number" id="c${i}" min="0" placeholder="0" value="${savedCounts&&savedCounts[i]?savedCounts[i]:''}">
+        <span class="cin-unit">食</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function updateName(el){
+  const names = loadNames();
+  names[parseInt(el.dataset.idx)] = el.value;
+  saveNames(names);
+}
+
+// ── Send ──────────────────────────────────────────────
+async function sendData(){
+  const btn = document.getElementById('sendBtn');
+  const msg = document.getElementById('statusMsg');
+  btn.disabled = true;
+  msg.className = 'status-msg';
+  msg.textContent = '送信中...';
+
+  const names = loadNames();
+  const counts = {};
+  let total = 0;
+  names.forEach((_,i)=>{
+    const v = parseInt(document.getElementById('c'+i).value)||0;
+    counts[i] = v;
+    total += v;
+  });
+
+  const data = { counts, total, names, date: getDateStr(), updatedAt: new Date().toLocaleTimeString('ja-JP') };
+  const ok = await storageSet(STORAGE_KEY, data);
+
+  btn.disabled = false;
+  if(ok){
+    msg.className = 'status-msg';
+    msg.textContent = `✅ 送信しました（${data.updatedAt}）`;
+  } else {
+    msg.className = 'status-msg err';
+    msg.textContent = '❌ 送信失敗。再度お試しください';
+  }
+}
+
+// ── Render Display ────────────────────────────────────
+function renderDisplay(data){
+  const names = data ? data.names : loadNames();
+  const body = document.getElementById('dispBody');
+  body.innerHTML = '';
+
+  if(!data){
+    body.innerHTML = '<div class="loading">まだデータがありません</div>';
+    document.getElementById('dispTotal').textContent = '—';
+    return;
+  }
+
+  names.forEach((name,i)=>{
+    const cnt = data.counts ? (data.counts[i]||0) : 0;
+    const card = document.createElement('div');
+    card.className = 'disp-card';
+    card.innerHTML = `
+      <div class="disp-card-name">${name}</div>
+      <div class="disp-card-num ${cnt===0?'empty':''}">${cnt||'—'}</div>
+      <div class="disp-card-unit">${cnt>0?'食':''}</div>`;
+    body.appendChild(card);
+  });
+
+  document.getElementById('dispTotal').textContent = data.total || 0;
+  document.getElementById('dispDate').textContent = data.date || getDateStr();
+  document.getElementById('dispUpdated').innerHTML = `<span class="dot" style="animation:blink 2s infinite"></span>最終更新: ${data.updatedAt}`;
+}
+
+// ── Poll (iPad auto-refresh) ──────────────────────────
+async function pollDisplay(){
+  const data = await storageGet(STORAGE_KEY);
+  renderDisplay(data);
+}
+
+// ── Init ──────────────────────────────────────────────
+async function init(){
+  const data = await storageGet(STORAGE_KEY);
+  buildGrid(data ? data.counts : null);
+  renderDisplay(data);
+}
+
+init();
+setInterval(pollDisplay, 15000);
+
+function showTab(pageId,tabId){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+  if(pageId==='displayPage') pollDisplay();
+}
+</script>
+</body>
+</html>
